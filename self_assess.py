@@ -8,6 +8,9 @@ import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.metrics.pairwise import cosine_similarity
 from scipy.stats import pearsonr
+from gensim.models import KeyedVectors
+from gensim.models.keyedvectors import WordEmbeddingsKeyedVectors
+from multiprocessing import Pool
 
 
 P = ['voyage', 'monk', 'stove', 'grin', 'furnace', 'mound', 'cushion', 'pillow', 'graveyard', 'cord',
@@ -73,7 +76,7 @@ S = {
     }
 
 
-def extract_words():
+def extract_words(num_words):
     nltk.download('stopwords')
     stop_words = set(stopwords.words('english'))
     nltk.download("brown")
@@ -85,7 +88,7 @@ def extract_words():
         'brother', 'cock', 'tumbler', 'serf', 'signature', 'tool', 'pillow', 'midday', 'gem']
 
     freq = nltk.FreqDist(word.lower() for word in brown.words() if word.isalpha() and word not in stop_words)
-    W = freq.most_common(5000)
+    W = freq.most_common(num_words)
     words = [entry[0] for entry in W]
 
     five_most = W[:5]
@@ -101,7 +104,6 @@ def extract_words():
     W.extend(new_entries)
 
     list_size = len(W)
-    print(new_entries)
     print("Five most common words")
     print(five_most)
     print("Five least common words")
@@ -156,14 +158,18 @@ def apply_pca(df, num_components, words):
     return pd.DataFrame(data=model, index=words)
 
 
-def evaluate_cosine(model_df):
+def evaluate_cosine(model, is_dataframe = True):
     ret = {}
     for (w1,w2) in S.keys():
         if w1 in P and w2 in P:
-            v1 = model_df.loc[w1]
-            v2 = model_df.loc[w2]
-            in1 = v1.to_numpy().reshape(1,v1.shape[0])
-            in2 = v2.to_numpy().reshape(1,v2.shape[0])
+            if is_dataframe:
+                v1 = model.loc[w1].to_numpy()
+                v2 = model.loc[w2].to_numpy()
+            else:
+                v1 = model[w1]
+                v2 = model[w2]
+            in1 = v1.reshape(1,v1.shape[0])
+            in2 = v2.reshape(1,v2.shape[0])
             res = cosine_similarity(in1, in2)
             ret[(w1,w2)] = res[0][0]
     return ret
@@ -180,25 +186,54 @@ def calc_pearson(results):
     return pearsonr(model, truth)
 
 
+tests = []
+
+
+def evaluate_analogies(index):
+    model,test = tests[index]
+    return model.evaluate_word_analogies(test)
+
+
 if __name__ == "__main__":
-    W,words,freq = extract_words()
+    W,words,freq = extract_words(5000)
     M1,M1_ordered,finder = build_word_context_model(words)
     M1_plus = compute_ppmi(finder, words)
     M2_10 = apply_pca(M1_plus, 10, words)
     M2_100 = apply_pca(M1_plus, 100, words)
     M2_300 = apply_pca(M1_plus, 300, words)
+    W2V = KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)
 
     SM1 = evaluate_cosine(M1)
-    SM1_ordered = evaluate_cosine(M1_ordered)
-    SM1_plus = evaluate_cosine(M1_plus)
-    SM2_10 = evaluate_cosine(M2_10)
-    SM2_100 = evaluate_cosine(M2_100)
-    SM2_300 = evaluate_cosine(M2_300)
-
     print("bigram count correlation {}".format(calc_pearson(SM1)[0]))
+    SM1_ordered = evaluate_cosine(M1_ordered)
     print("bigram ordered count correlation {}".format(calc_pearson(SM1_ordered)[0]))
+    SM1_plus = evaluate_cosine(M1_plus)
     print("ppmi correlation {}".format(calc_pearson(SM1_plus)[0]))
+    SM2_10 = evaluate_cosine(M2_10)
     print("pca_10 correlation {}".format(calc_pearson(SM2_10)[0]))
+    SM2_100 = evaluate_cosine(M2_100)
     print("pca_100 correlation {}".format(calc_pearson(SM2_100)[0]))
+    SM2_300 = evaluate_cosine(M2_300)
     print("pca_300 correlation {}".format(calc_pearson(SM2_300)[0]))
+    SW2V = evaluate_cosine(W2V, False)
+    print("word2vec correlation {}".format(calc_pearson(SW2V)[0]))
+
+    SM_keyed = WordEmbeddingsKeyedVectors(300)
+    SM_keyed.add(words, M2_300.to_numpy())
+
+    tests = [(W2V,'./word-test.v1.txt'),
+            (W2V,'./filtered-test.txt'),
+            (SM_keyed,'./word-test.v1.txt'),
+            (SM_keyed,'./filtered-test.txt')]
+
+    inputs = [0, 1, 2, 3]
+    with Pool(8) as p:
+        results = p.map(evaluate_analogies, inputs)
+
+
+    print("loaded model has accuracy {} on full analogies".format(results[0][0]))
+    print("computed model has accuracy {} on full analogies".format(results[2][0]))
+
+    print("loaded model has accuracy {} on filtered analogies".format(results[1][0]))
+    print("computed model has accuracy {} on filtered analogies".format(results[3][0]))
 
