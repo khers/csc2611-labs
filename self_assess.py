@@ -186,14 +186,6 @@ def calc_pearson(results):
     return pearsonr(model, truth)
 
 
-tests = []
-
-
-def evaluate_analogies(index):
-    model,test = tests[index]
-    return model.evaluate_word_analogies(test)
-
-
 if __name__ == "__main__":
     W,words,freq = extract_words(5000)
     M1,M1_ordered,finder = build_word_context_model(words)
@@ -201,7 +193,6 @@ if __name__ == "__main__":
     M2_10 = apply_pca(M1_plus, 10, words)
     M2_100 = apply_pca(M1_plus, 100, words)
     M2_300 = apply_pca(M1_plus, 300, words)
-    W2V = KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)
 
     SM1 = evaluate_cosine(M1)
     print("bigram count correlation {}".format(calc_pearson(SM1)[0]))
@@ -215,25 +206,4 @@ if __name__ == "__main__":
     print("pca_100 correlation {}".format(calc_pearson(SM2_100)[0]))
     SM2_300 = evaluate_cosine(M2_300)
     print("pca_300 correlation {}".format(calc_pearson(SM2_300)[0]))
-    SW2V = evaluate_cosine(W2V, False)
-    print("word2vec correlation {}".format(calc_pearson(SW2V)[0]))
-
-    SM_keyed = WordEmbeddingsKeyedVectors(300)
-    SM_keyed.add(words, M2_300.to_numpy())
-
-    tests = [(W2V,'./word-test.v1.txt'),
-            (W2V,'./filtered-test.txt'),
-            (SM_keyed,'./word-test.v1.txt'),
-            (SM_keyed,'./filtered-test.txt')]
-
-    inputs = [0, 1, 2, 3]
-    with Pool(8) as p:
-        results = p.map(evaluate_analogies, inputs)
-
-
-    print("loaded model has accuracy {} on full analogies".format(results[0][0]))
-    print("computed model has accuracy {} on full analogies".format(results[2][0]))
-
-    print("loaded model has accuracy {} on filtered analogies".format(results[1][0]))
-    print("computed model has accuracy {} on filtered analogies".format(results[3][0]))
 
