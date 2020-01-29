@@ -12,7 +12,8 @@ from gensim.models import KeyedVectors
 from gensim.models.keyedvectors import WordEmbeddingsKeyedVectors
 from multiprocessing import Pool
 
-from self_assess import *
+from self_assess import extract_words,build_word_context_model,compute_ppmi
+from self_assess import apply_pca,evaluate_cosine,calc_pearson
 
 tests = []
 global_model = None
@@ -20,7 +21,6 @@ global_model = None
 def evaluate_analogies(index):
     model,test = tests[index]
     return model.evaluate_word_analogies(test)
-
 
 
 def run_tests(inputs):
@@ -71,7 +71,6 @@ def local_analogies(index):
     print("Incorrect entries: {}".format(wrong))
 
 
-
 if __name__ == "__main__":
     _,words,freq = extract_words(5000)
     _,_,finder = build_word_context_model(words)
@@ -91,7 +90,6 @@ if __name__ == "__main__":
             (W2V,'./filtered-test.txt'),
             (SM_keyed,'./word-test.v1.txt'),
             (SM_keyed,'./filtered-test.txt')]
-
 
     inputs = [0, 1, 2, 3]
     with Pool(8) as p:
