@@ -67,8 +67,9 @@ def local_analogies(index):
         correct += entry['correct']
         wrong.extend(entry['wrong'])
 
-    print("Got {} of {} which is accuracy {}".format(correct, total, (correct * 1.0) / total))
-    print("Incorrect entries: {}".format(wrong))
+    return ((correct * 1.0) / total, wrong)
+    #print("Got {} of {} which is accuracy {}".format(correct, total, (correct * 1.0) / total))
+    #print("Incorrect entries: {}".format(wrong))
 
 
 if __name__ == "__main__":
@@ -92,7 +93,7 @@ if __name__ == "__main__":
             (SM_keyed,'./filtered-test.txt')]
 
     inputs = [0, 1, 2, 3]
-    with Pool(8) as p:
+    with Pool(4) as p:
         results = p.map(evaluate_analogies, inputs)
 
     print("loaded model has accuracy {} on full analogies".format(results[0][0]))
