@@ -68,8 +68,6 @@ def local_analogies(index):
         wrong.extend(entry['wrong'])
 
     return ((correct * 1.0) / total, wrong)
-    #print("Got {} of {} which is accuracy {}".format(correct, total, (correct * 1.0) / total))
-    #print("Incorrect entries: {}".format(wrong))
 
 
 if __name__ == "__main__":
