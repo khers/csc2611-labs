@@ -76,6 +76,8 @@ if __name__ == "__main__":
     _,words,freq = extract_words(5000)
     _,_,finder = build_word_context_model(words)
     M1_plus = compute_ppmi(finder, words)
+    M2_10 = apply_pca(M1_plus, 10, words)
+    M2_100 = apply_pca(M1_plus, 100, words)
     M2_300 = apply_pca(M1_plus, 300, words)
     W2V = KeyedVectors.load_word2vec_format('./GoogleNews-vectors-negative300.bin', binary=True)
 
@@ -87,18 +89,32 @@ if __name__ == "__main__":
     SM_keyed = WordEmbeddingsKeyedVectors(300)
     SM_keyed.add(words, M2_300.to_numpy())
 
+    M10_keyed = WordEmbeddingsKeyedVectors(10)
+    M10_keyed.add(words, M2_10.to_numpy())
+
+    M100_keyed = WordEmbeddingsKeyedVectors(100)
+    M100_keyed.add(words, M2_100.to_numpy())
+
     tests = [(W2V,'./word-test.v1.txt'),
             (W2V,'./filtered-test.txt'),
+            (M10_keyed,'./word-test.v1.txt'),
+            (M10_keyed,'./filtered-test.txt'),
+            (M100_keyed,'./word-test.v1.txt'),
+            (M100_keyed,'./filtered-test.txt'),
             (SM_keyed,'./word-test.v1.txt'),
             (SM_keyed,'./filtered-test.txt')]
 
-    inputs = [0, 1, 2, 3]
-    with Pool(4) as p:
+    inputs = [0, 1, 2, 3, 4, 5, 6, 7]
+    with Pool(8) as p:
         results = p.map(evaluate_analogies, inputs)
 
     print("loaded model has accuracy {} on full analogies".format(results[0][0]))
-    print("computed model has accuracy {} on full analogies".format(results[2][0]))
+    print("300 feature model has accuracy {} on full analogies".format(results[6][0]))
 
     print("loaded model has accuracy {} on filtered analogies".format(results[1][0]))
-    print("computed model has accuracy {} on filtered analogies".format(results[3][0]))
+    print("300 feature model has accuracy {} on filtered analogies".format(results[7][0]))
 
+    print("10 feature model has accuracy {} on full analogies".format(results[2][0]))
+    print("10 feature model has accuracy {} on filtered analogies".format(results[3][0]))
+    print("100 feature model has accuracy {} on full analogies".format(results[4][0]))
+    print("100 feature model has accuracy {} on filtered analogies".format(results[5][0]))
