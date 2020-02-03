@@ -2,6 +2,7 @@ GoogleNews-vectors-negative300.bin
 Untitled.ipynb
 word-test.v1.txt
 filtered-test.txt
+data.pkl
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
