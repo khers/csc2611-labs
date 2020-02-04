@@ -7,6 +7,9 @@ from scipy.linalg import orthogonal_procrustes
 from sklearn.metrics.pairwise import cosine_similarity
 from gensim.models.keyedvectors import WordEmbeddingsKeyedVectors
 from scipy.stats import pearsonr
+import statistics
+import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
 
 
 words = []
@@ -89,6 +92,32 @@ def compute_scaled_average_sim(early, later):
         scores.append(len(overlap) + (1 - abs(later_avg - early_avg)))
     return scores
 
+
+def score_instance(word, early, later):
+    R,_ = orthogonal_procrustes(early, later, check_finite=False)
+    rotated = early @ R
+    return cosine_similarity(rotated.loc[word].to_numpy().reshape(1,300),
+                            later.loc[word].to_numpy().reshape(1,300))[0][0]
+
+
+def score_decades(models, word):
+    decade_pairs = [(1900,1910), (1910, 1920), (1920,1930), (1930,1940), (1940,1950), (1950,1960),
+                 (1960,1970), (1970,1980), (1980,1990)]
+    scores = list()
+    for pair in decade_pairs:
+        scores.append(score_instance(word, models[pair[0]], models[pair[1]]))
+    return scores
+
+
+def detect_change(scores, word):
+    change = scores[0]
+    stddev = statistics.stdev(scores)
+    for i in range(1, len(scores)):
+        if abs(scores[i] - change) > stddev:
+            change = scores[i]
+            print("change detected at {} for {}".format((1900 + i * 10), word))
+
+
 if __name__ == "__main__":
     models_by_decade = read_and_organize_models('./data.pkl')
     cosine_sim_scores = compute_rotated_similarity(models_by_decade[1900], models_by_decade[1990])
@@ -145,3 +174,42 @@ if __name__ == "__main__":
     print("Pearson with cos {}".format(pearsonr(c_scores, truth_scores)[0]))
     print("Pearson with NN {}".format(pearsonr(n_scores, truth_scores)[0]))
     print("Pearson with NN + avg {}".format(pearsonr(s_scores, truth_scores)[0]))
+
+    ml_scores = score_decades(models_by_decade, 'ml')
+    mcgraw_scores = score_decades(models_by_decade, 'mcgraw')
+    skills_scores = score_decades(models_by_decade, 'skills')
+
+    detect_change(ml_scores, 'ml')
+    detect_change(mcgraw_scores, 'mcgraw')
+    detect_change(skills_scores, 'skills')
+
+    x_axis = [1910,1920,1930,1940,1950,1960,1970,1980,1990]
+
+    plt.ylabel('Cosine Similarity')
+    plt.xlabel('Decade')
+    plt.plot(x_axis, ml_scores, color='b')
+    plt.axvline(x=1930, color='r')
+    r_patch = mlines.Line2D([],[],color='r', label='Change Point')
+    b_patch = mlines.Line2D([],[],color='b', label='Cosine Similarity')
+    plt.legend(handles=[r_patch,b_patch])
+    plt.savefig("ml.pdf")
+    plt.clf()
+
+    plt.ylabel('Cosine Similarity')
+    plt.xlabel('Decade')
+    plt.plot(x_axis, mcgraw_scores, color='b')
+    plt.axvline(x=1920, color='r')
+    r_patch = mlines.Line2D([],[],color='r', label='Change Point')
+    b_patch = mlines.Line2D([],[],color='b', label='Cosine Similarity')
+    plt.legend(handles=[r_patch,b_patch])
+    plt.savefig("mcgraw.pdf")
+    plt.clf()
+
+    plt.ylabel('Cosine Similarity')
+    plt.xlabel('Decade')
+    plt.plot(x_axis, skills_scores, color='b')
+    plt.axvline(x=1930, color='r')
+    r_patch = mlines.Line2D([],[],color='r', label='Change Point')
+    b_patch = mlines.Line2D([],[],color='b', label='Cosine Similarity')
+    plt.legend(handles=[r_patch,b_patch])
+    plt.savefig("skills.pdf")
